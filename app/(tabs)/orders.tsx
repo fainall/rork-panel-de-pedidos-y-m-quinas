@@ -9,9 +9,10 @@ import {
   Modal,
   Pressable,
   Platform,
+  Animated,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { Plus, Calendar, Check, X } from 'lucide-react-native';
+import { Plus, Calendar, Check, X, ChevronDown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useOrders } from '@/contexts/OrdersContext';
 
@@ -26,6 +27,8 @@ export default function OrdersScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<{ id: string; quantity: number } | null>(null);
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [animationHeight] = useState(new Animated.Value(0));
   const [newOrder, setNewOrder] = useState({
     name: '',
     type: 'H' as 'H' | 'M',
@@ -99,68 +102,111 @@ export default function OrdersScreen() {
 
   const days = getDaysInMonth(selectedDate);
 
+  const toggleCalendar = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    const toValue = calendarExpanded ? 0 : 1;
+    setCalendarExpanded(!calendarExpanded);
+    
+    Animated.spring(animationHeight, {
+      toValue,
+      useNativeDriver: false,
+      tension: 50,
+      friction: 8,
+    }).start();
+  };
+
+  const calendarHeight = animationHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 400],
+  });
+
+  const iconRotation = animationHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Pedidos de Pan' }} />
       
       <ScrollView style={styles.content}>
         <View style={styles.calendarContainer}>
-          <View style={styles.calendarHeader}>
-            <TouchableOpacity onPress={handlePrevMonth} style={styles.monthButton}>
-              <Text style={styles.monthButtonText}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.monthTitle}>
-              {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
-            </Text>
-            <TouchableOpacity onPress={handleNextMonth} style={styles.monthButton}>
-              <Text style={styles.monthButtonText}>→</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity 
+            style={styles.calendarToggleButton}
+            onPress={toggleCalendar}
+            activeOpacity={0.7}
+          >
+            <View style={styles.calendarToggleContent}>
+              <Calendar size={20} color="#4f46e5" />
+              <Text style={styles.calendarToggleText}>
+                {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </Text>
+              <Animated.View style={{ transform: [{ rotate: iconRotation }] }}>
+                <ChevronDown size={20} color="#4f46e5" />
+              </Animated.View>
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.weekDays}>
-            {DAYS.map((day) => (
-              <Text key={day} style={styles.weekDay}>{day}</Text>
-            ))}
-          </View>
+          <Animated.View style={[styles.calendarContent, { height: calendarHeight, overflow: 'hidden' }]}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={handlePrevMonth} style={styles.monthButton}>
+                <Text style={styles.monthButtonText}>←</Text>
+              </TouchableOpacity>
+              <Text style={styles.monthTitle}>
+                {MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </Text>
+              <TouchableOpacity onPress={handleNextMonth} style={styles.monthButton}>
+                <Text style={styles.monthButtonText}>→</Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.calendar}>
-            {days.map((day, index) => {
-              if (!day) {
-                return <View key={`empty-${index}`} style={styles.dayCell} />;
-              }
+            <View style={styles.weekDays}>
+              {DAYS.map((day) => (
+                <Text key={day} style={styles.weekDay}>{day}</Text>
+              ))}
+            </View>
 
-              const dateStr = formatDate(day);
-              const dayOrders = getOrdersByDate(dateStr);
-              const isSelected = dateStr === selectedDateStr;
-              const isToday = dateStr === formatDate(new Date());
+            <View style={styles.calendar}>
+              {days.map((day, index) => {
+                if (!day) {
+                  return <View key={`empty-${index}`} style={styles.dayCell} />;
+                }
 
-              return (
-                <TouchableOpacity
-                  key={dateStr}
-                  style={[
-                    styles.dayCell,
-                    isSelected && styles.selectedDay,
-                    isToday && styles.today,
-                  ]}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }
-                    setSelectedDate(day);
-                  }}
-                >
-                  <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>
-                    {day.getDate()}
-                  </Text>
-                  {dayOrders.length > 0 && (
-                    <View style={styles.orderIndicator}>
-                      <Text style={styles.orderCount}>{dayOrders.length}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                const dateStr = formatDate(day);
+                const dayOrders = getOrdersByDate(dateStr);
+                const isSelected = dateStr === selectedDateStr;
+                const isToday = dateStr === formatDate(new Date());
+
+                return (
+                  <TouchableOpacity
+                    key={dateStr}
+                    style={[
+                      styles.dayCell,
+                      isSelected && styles.selectedDay,
+                      isToday && styles.today,
+                    ]}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                      setSelectedDate(day);
+                    }}
+                  >
+                    <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>
+                      {day.getDate()}
+                    </Text>
+                    {dayOrders.length > 0 && (
+                      <View style={styles.orderIndicator}>
+                        <Text style={styles.orderCount}>{dayOrders.length}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Animated.View>
         </View>
 
         <View style={styles.ordersSection}>
@@ -369,7 +415,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     margin: 16,
     borderRadius: 16,
-    padding: 16,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -384,6 +430,25 @@ const styles = StyleSheet.create({
         boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
       },
     }),
+  },
+  calendarToggleButton: {
+    padding: 16,
+  },
+  calendarToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  calendarToggleText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1f2937',
+    marginLeft: 8,
+  },
+  calendarContent: {
+    padding: 16,
+    paddingTop: 0,
   },
   calendarHeader: {
     flexDirection: 'row',
