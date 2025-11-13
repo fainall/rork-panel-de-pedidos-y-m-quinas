@@ -26,13 +26,13 @@ export default function OrdersScreen() {
   const { getOrdersByDate, addOrder, updateOrder, deleteOrder } = useOrders();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<{ id: string; quantity: number } | null>(null);
+
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [animationHeight] = useState(new Animated.Value(0));
   const [newOrder, setNewOrder] = useState({
     name: '',
-    type: 'H' as 'H' | 'M',
-    quantity: 1,
+    quantityH: 0,
+    quantityM: 0,
   });
 
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
@@ -59,18 +59,18 @@ export default function OrdersScreen() {
   };
 
   const handleAddOrder = () => {
-    if (newOrder.name.trim() && newOrder.quantity > 0) {
+    if (newOrder.name.trim() && (newOrder.quantityH > 0 || newOrder.quantityM > 0)) {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       addOrder({
         name: newOrder.name.trim(),
-        type: newOrder.type,
-        quantity: newOrder.quantity,
+        quantityH: newOrder.quantityH,
+        quantityM: newOrder.quantityM,
         date: selectedDateStr,
         pickedUp: false,
       });
-      setNewOrder({ name: '', type: 'H', quantity: 1 });
+      setNewOrder({ name: '', quantityH: 0, quantityM: 0 });
       setShowAddModal(false);
     }
   };
@@ -82,15 +82,7 @@ export default function OrdersScreen() {
     updateOrder(id, { pickedUp: !currentStatus });
   };
 
-  const handleUpdateQuantity = (id: string, quantity: number) => {
-    if (quantity > 0) {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-      updateOrder(id, { quantity });
-      setEditingOrder(null);
-    }
-  };
+
 
   const handlePrevMonth = () => {
     setSelectedDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1));
@@ -217,6 +209,27 @@ export default function OrdersScreen() {
             </Text>
           </View>
 
+          {orders.length > 0 && (
+            <View style={styles.summaryContainer}>
+              <View style={styles.summaryItem}>
+                <View style={styles.summaryBadge}>
+                  <Text style={styles.summaryBadgeText}>H</Text>
+                </View>
+                <Text style={styles.summaryText}>
+                  {orders.reduce((sum, order) => sum + order.quantityH, 0)} Hallullas
+                </Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <View style={[styles.summaryBadge, styles.summaryBadgeM]}>
+                  <Text style={styles.summaryBadgeText}>M</Text>
+                </View>
+                <Text style={styles.summaryText}>
+                  {orders.reduce((sum, order) => sum + order.quantityM, 0)} Marraquetas
+                </Text>
+              </View>
+            </View>
+          )}
+
           {orders.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No hay pedidos para este día</Text>
@@ -229,49 +242,21 @@ export default function OrdersScreen() {
                     <View style={styles.orderInfo}>
                       <Text style={styles.orderName}>{order.name}</Text>
                       <View style={styles.orderDetails}>
-                        <View style={[styles.typeBadge, order.type === 'H' && styles.typeBadgeH]}>
-                          <Text style={styles.typeText}>{order.type}</Text>
-                        </View>
-                        {editingOrder?.id === order.id ? (
-                          <View style={styles.quantityEditor}>
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (editingOrder.quantity > 1) {
-                                  setEditingOrder({ ...editingOrder, quantity: editingOrder.quantity - 1 });
-                                }
-                              }}
-                              style={styles.quantityButton}
-                            >
-                              <Text style={styles.quantityButtonText}>−</Text>
-                            </TouchableOpacity>
-                            <TextInput
-                              style={styles.quantityInput}
-                              value={String(editingOrder.quantity)}
-                              keyboardType="number-pad"
-                              onChangeText={(text) => {
-                                const num = parseInt(text) || 1;
-                                setEditingOrder({ ...editingOrder, quantity: num });
-                              }}
-                            />
-                            <TouchableOpacity
-                              onPress={() => setEditingOrder({ ...editingOrder, quantity: editingOrder.quantity + 1 })}
-                              style={styles.quantityButton}
-                            >
-                              <Text style={styles.quantityButtonText}>+</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleUpdateQuantity(order.id, editingOrder.quantity)}
-                              style={styles.saveButton}
-                            >
-                              <Check size={16} color="#fff" />
-                            </TouchableOpacity>
+                        {order.quantityH > 0 && (
+                          <View style={styles.quantityBadge}>
+                            <View style={styles.typeBadgeH}>
+                              <Text style={styles.typeText}>H</Text>
+                            </View>
+                            <Text style={styles.quantityText}>{order.quantityH}</Text>
                           </View>
-                        ) : (
-                          <TouchableOpacity
-                            onPress={() => setEditingOrder({ id: order.id, quantity: order.quantity })}
-                          >
-                            <Text style={styles.quantity}>{order.quantity}x</Text>
-                          </TouchableOpacity>
+                        )}
+                        {order.quantityM > 0 && (
+                          <View style={styles.quantityBadge}>
+                            <View style={styles.typeBadgeM}>
+                              <Text style={styles.typeText}>M</Text>
+                            </View>
+                            <Text style={styles.quantityText}>{order.quantityM}</Text>
+                          </View>
                         )}
                       </View>
                     </View>
@@ -337,46 +322,51 @@ export default function OrdersScreen() {
               placeholderTextColor="#9ca3af"
             />
 
-            <Text style={styles.label}>Tipo</Text>
-            <View style={styles.typeSelector}>
-              <TouchableOpacity
-                style={[styles.typeOption, newOrder.type === 'H' && styles.typeOptionSelected]}
-                onPress={() => setNewOrder({ ...newOrder, type: 'H' })}
-              >
-                <Text style={[styles.typeOptionText, newOrder.type === 'H' && styles.typeOptionTextSelected]}>
-                  Hallulla (H)
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeOption, newOrder.type === 'M' && styles.typeOptionSelected]}
-                onPress={() => setNewOrder({ ...newOrder, type: 'M' })}
-              >
-                <Text style={[styles.typeOptionText, newOrder.type === 'M' && styles.typeOptionTextSelected]}>
-                  Marraqueta (M)
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>Cantidad</Text>
+            <Text style={styles.label}>Cantidad de Hallullas (H)</Text>
             <View style={styles.quantitySelector}>
               <TouchableOpacity
                 style={styles.quantityButton}
-                onPress={() => setNewOrder({ ...newOrder, quantity: Math.max(1, newOrder.quantity - 1) })}
+                onPress={() => setNewOrder({ ...newOrder, quantityH: Math.max(0, newOrder.quantityH - 1) })}
               >
                 <Text style={styles.quantityButtonText}>−</Text>
               </TouchableOpacity>
               <TextInput
                 style={styles.quantityInputLarge}
-                value={String(newOrder.quantity)}
+                value={String(newOrder.quantityH)}
                 keyboardType="number-pad"
                 onChangeText={(text) => {
-                  const num = parseInt(text) || 1;
-                  setNewOrder({ ...newOrder, quantity: num });
+                  const num = parseInt(text) || 0;
+                  setNewOrder({ ...newOrder, quantityH: num });
                 }}
               />
               <TouchableOpacity
                 style={styles.quantityButton}
-                onPress={() => setNewOrder({ ...newOrder, quantity: newOrder.quantity + 1 })}
+                onPress={() => setNewOrder({ ...newOrder, quantityH: newOrder.quantityH + 1 })}
+              >
+                <Text style={styles.quantityButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Cantidad de Marraquetas (M)</Text>
+            <View style={styles.quantitySelector}>
+              <TouchableOpacity
+                style={styles.quantityButton}
+                onPress={() => setNewOrder({ ...newOrder, quantityM: Math.max(0, newOrder.quantityM - 1) })}
+              >
+                <Text style={styles.quantityButtonText}>−</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.quantityInputLarge}
+                value={String(newOrder.quantityM)}
+                keyboardType="number-pad"
+                onChangeText={(text) => {
+                  const num = parseInt(text) || 0;
+                  setNewOrder({ ...newOrder, quantityM: num });
+                }}
+              />
+              <TouchableOpacity
+                style={styles.quantityButton}
+                onPress={() => setNewOrder({ ...newOrder, quantityM: newOrder.quantityM + 1 })}
               >
                 <Text style={styles.quantityButtonText}>+</Text>
               </TouchableOpacity>
@@ -591,29 +581,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  typeBadge: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
   typeBadgeH: {
     backgroundColor: '#3b82f6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  typeBadgeM: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    minWidth: 20,
+    alignItems: 'center',
   },
   typeText: {
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#fff',
   },
-  quantity: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#6b7280',
-  },
-  quantityEditor: {
+  quantityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  quantityText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#1f2937',
   },
   quantityButton: {
     width: 28,
@@ -728,29 +729,40 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
-  typeSelector: {
+  summaryContainer: {
     flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+  },
+  summaryItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  typeOption: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
+  summaryBadge: {
+    backgroundColor: '#3b82f6',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  typeOptionSelected: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
+  summaryBadgeM: {
+    backgroundColor: '#f59e0b',
   },
-  typeOptionText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#6b7280',
+  summaryBadgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#fff',
   },
-  typeOptionTextSelected: {
-    color: '#4f46e5',
+  summaryText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#1f2937',
   },
   quantitySelector: {
     flexDirection: 'row',

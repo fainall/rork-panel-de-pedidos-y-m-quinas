@@ -7,8 +7,8 @@ export type Order = {
   id: string;
   date: string;
   name: string;
-  type: 'H' | 'M';
-  quantity: number;
+  quantityH: number;
+  quantityM: number;
   pickedUp: boolean;
 };
 
