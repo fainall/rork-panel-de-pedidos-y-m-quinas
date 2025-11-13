@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { Plus, Calendar, Check, X } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useOrders } from '@/contexts/OrdersContext';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -56,6 +57,9 @@ export default function OrdersScreen() {
 
   const handleAddOrder = () => {
     if (newOrder.name.trim() && newOrder.quantity > 0) {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       addOrder({
         name: newOrder.name.trim(),
         type: newOrder.type,
@@ -69,11 +73,17 @@ export default function OrdersScreen() {
   };
 
   const handleTogglePickup = (id: string, currentStatus: boolean) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     updateOrder(id, { pickedUp: !currentStatus });
   };
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
     if (quantity > 0) {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       updateOrder(id, { quantity });
       setEditingOrder(null);
     }
@@ -132,7 +142,12 @@ export default function OrdersScreen() {
                     isSelected && styles.selectedDay,
                     isToday && styles.today,
                   ]}
-                  onPress={() => setSelectedDate(day)}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setSelectedDate(day);
+                  }}
                 >
                   <Text style={[styles.dayText, isSelected && styles.selectedDayText]}>
                     {day.getDate()}
@@ -227,7 +242,12 @@ export default function OrdersScreen() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.deleteButton}
-                        onPress={() => deleteOrder(order.id)}
+                        onPress={() => {
+                          if (Platform.OS !== 'web') {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                          }
+                          deleteOrder(order.id);
+                        }}
                       >
                         <X size={20} color="#ef4444" />
                       </TouchableOpacity>
@@ -240,7 +260,15 @@ export default function OrdersScreen() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)}>
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => {
+          if (Platform.OS !== 'web') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+          setShowAddModal(true);
+        }}
+      >
         <Plus size={24} color="#fff" />
       </TouchableOpacity>
 

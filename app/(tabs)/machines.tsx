@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { Gamepad2, TrendingUp, Calendar, X, Edit2 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useMachines } from '../../contexts/MachinesContext';
 
 const PRESET_AMOUNTS = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];
@@ -40,12 +41,18 @@ export default function MachinesScreen() {
   const today = new Date().toISOString().split('T')[0];
 
   const handleAddPrize = (machineId: number, amount: number) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     addPrize(machineId, amount);
   };
 
   const handleCustomAmount = (machineId: number) => {
     const amount = parseInt(customAmount);
     if (amount > 0) {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       addPrize(machineId, amount);
       setCustomAmount('');
       setSelectedMachine(null);
@@ -54,6 +61,9 @@ export default function MachinesScreen() {
 
   const handleUpdatePrize = () => {
     if (editingPrize && editingPrize.amount > 0) {
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       updatePrize(editingPrize.id, editingPrize.amount);
       setEditingPrize(null);
     }
@@ -120,7 +130,12 @@ export default function MachinesScreen() {
                   styles.machineCard,
                   selectedMachine === machineId && styles.machineCardSelected,
                 ]}
-                onPress={() => setSelectedMachine(machineId)}
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setSelectedMachine(machineId);
+                }}
               >
                 <View style={styles.machineHeader}>
                   <Gamepad2 size={24} color="#4f46e5" />
@@ -214,7 +229,12 @@ export default function MachinesScreen() {
                       >
                         <Edit2 size={18} color="#3b82f6" />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => deletePrize(prize.id)}>
+                      <TouchableOpacity onPress={() => {
+                        if (Platform.OS !== 'web') {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        }
+                        deletePrize(prize.id);
+                      }}>
                         <X size={18} color="#ef4444" />
                       </TouchableOpacity>
                     </View>
